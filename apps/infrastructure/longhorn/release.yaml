@@ -13,6 +13,8 @@ spec:
     targetRevision: 1.10.1
     helm:
       values: |
+        helmPreUpgradeCheckerJob:
+          enabled: false
         persistence:
           defaultClassReplicaCount: 2
           reclaimPolicy: Retain
