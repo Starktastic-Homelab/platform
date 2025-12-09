@@ -40,6 +40,7 @@ spec:
             kube-vip.io/loadbalancerIPs: "10.9.9.90,10.9.8.90"
         api:
           dashboard: true
+          insecure: true
         # By default, we DO NOT expose the dashboard on the LoadBalancer.
         # We will expose it via Ingress later, protected by Middleware.
         ingressRoute:
