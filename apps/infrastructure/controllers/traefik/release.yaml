@@ -17,7 +17,8 @@ spec:
         ports:
           web:
             port: 8000
-            expose: true
+            expose:
+              default: true
             redirections:
               entryPoint:
                 to: websecure
@@ -25,11 +26,13 @@ spec:
                 permanent: true
           websecure:
             port: 8443
-            expose: true
+            expose:
+              default: true
             protocol: TCP
           web_internal:
             port: 8001
-            expose: false
+            expose:
+              default: false
             redirections:
               entryPoint:
                 to: websecure_internal
@@ -37,7 +40,8 @@ spec:
                 permanent: true
           websecure_internal:
             port: 8444
-            expose: false
+            expose:
+              default: false
             protocol: TCP
         service:
           enabled: true
@@ -74,10 +78,10 @@ spec:
       prune: true
       selfHeal: true
     retry:
-      limit: 5
+      limit: 10
       backoff:
-        duration: 5s
+        duration: 10s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 5m
     syncOptions:
       - CreateNamespace=true
