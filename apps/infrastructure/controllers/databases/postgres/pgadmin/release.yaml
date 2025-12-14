@@ -15,15 +15,12 @@ spec:
     helm:
       values: |
         env:
-          email: "dummy@example.com"
-          password: "dummy"
-        extraEnv:
-          - name: PGADMIN_DEFAULT_EMAIL
+          - name: email
             valueFrom:
               secretKeyRef:
                 name: pgadmin-secret
                 key: email
-          - name: PGADMIN_DEFAULT_PASSWORD
+          - name: password
             valueFrom:
               secretKeyRef:
                 name: pgadmin-secret
