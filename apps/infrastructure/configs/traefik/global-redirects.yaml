@@ -18,7 +18,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: HostRegexp(`{host:.+}`)
+    - match: PathPrefix(`/`)
       kind: Rule
       services:
         - name: api@internal
@@ -37,7 +37,7 @@ spec:
   entryPoints:
     - web-int
   routes:
-    - match: HostRegexp(`{host:.+}`)
+    - match: PathPrefix(`/`)
       kind: Rule
       services:
         - name: api@internal
