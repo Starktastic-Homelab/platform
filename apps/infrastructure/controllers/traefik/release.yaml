@@ -19,11 +19,6 @@ spec:
             port: 8000
             expose:
               default: true
-            redirections:
-              entryPoint:
-                to: websecure
-                scheme: https
-                permanent: true
           websecure:
             port: 8443
             expose:
@@ -33,11 +28,6 @@ spec:
             port: 8001
             expose:
               default: false
-            redirections:
-              entryPoint:
-                to: websec-int
-                scheme: https
-                permanent: true
           websec-int:
             port: 8444
             expose:
