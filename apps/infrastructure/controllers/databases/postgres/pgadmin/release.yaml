@@ -24,21 +24,17 @@ spec:
           storageClass: "nfs-pv"
           size: 1Gi
         serverDefinitions:
-          "servers.json": |
-            {
-              "Servers": {
-                "1": {
-                  "Name": "Starktastic Postgres",
-                  "Group": "Servers",
-                  "Port": 5432,
-                  "Username": "postgres",
-                  "Host": "postgres-postgresql.databases.svc.cluster.local",
-                  "SSLMode": "prefer",
-                  "MaintenanceDB": "postgres",
-                  "Shared": true
-                }
-              }
-            }
+          enabled: true
+          resourceType: ConfigMap
+          servers:
+            primaryDB:
+              Name: "Starktastic Postgres"
+              Group: "Servers"
+              Username: "postgres"
+              Host: "postgres-postgresql.databases.svc.cluster.local"
+              Port: 5432
+              SSLMode: "prefer"
+              MaintenanceDB: "postgres"
         securityContext:
           fsGroup: 5050
           runAsUser: 5050
