@@ -34,17 +34,14 @@ spec:
               value: "smtp.eu.mailgun.org"
             - name: AUTHENTIK_EMAIL__PORT
               value: "587"
+            - name: AUTHENTIK_EMAIL__USERNAME
+              value: "postmaster@benplus.vip"
             - name: AUTHENTIK_EMAIL__FROM
               value: "noreply@benplus.vip"
             - name: AUTHENTIK_EMAIL__USE_TLS
               value: "true"
             - name: AUTHENTIK_EMAIL__TIMEOUT
               value: "10"
-            - name: AUTHENTIK_EMAIL__USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: smtp-authentik-secret
-                  key: username
             - name: AUTHENTIK_EMAIL__PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -65,17 +62,14 @@ spec:
               value: "smtp.eu.mailgun.org"
             - name: AUTHENTIK_EMAIL__PORT
               value: "587"
+            - name: AUTHENTIK_EMAIL__USERNAME
+              value: "postmaster@benplus.vip"
             - name: AUTHENTIK_EMAIL__FROM
               value: "noreply@benplus.vip"
             - name: AUTHENTIK_EMAIL__USE_TLS
               value: "true"
             - name: AUTHENTIK_EMAIL__TIMEOUT
               value: "10"
-            - name: AUTHENTIK_EMAIL__USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: smtp-authentik-secret
-                  key: username
             - name: AUTHENTIK_EMAIL__PASSWORD
               valueFrom:
                 secretKeyRef:
