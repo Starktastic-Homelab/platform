@@ -61,6 +61,16 @@ spec:
             allowCrossNamespace: true
           kubernetesIngress:
             allowCrossNamespace: true
+        logs:
+          general:
+            level: INFO
+          access:
+            enabled: true
+            format: json  # JSON is much easier to parse
+            fields:
+              defaultMode: keep
+              headers:
+                defaultMode: keep
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik-system
