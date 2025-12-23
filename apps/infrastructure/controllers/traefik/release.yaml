@@ -13,7 +13,7 @@ spec:
     helm:
       values: |
         deployment:
-          replicas: 2
+          kind: DaemonSet
         ports:
           web:
             port: 8000
