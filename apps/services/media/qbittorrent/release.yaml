@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qbittorrent
+  namespace: argocd
+  finalizers: ["resources-finalizer.argocd.argoproj.io"]
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://bjw-s.github.io/helm-charts/
+    chart: app-template
+    targetRevision: 4.5.0
+    helm:
+      values: |
+        controllers:
+          main:
+            containers:
+              main:
+                image:
+                  repository: lscr.io/linuxserver/qbittorrent
+                  digest: sha256:c4e1276d9eec06f2520b4cdffcff49aea4215e5ac2d51bf0de81cce9f8aa85d4
+                env:
+                  TZ: "Asia/Jerusalem"
+                  PUID: "1000"
+                  PGID: "1000"
+                  WEBUI_PORT: "8080"
+        service:
+          webui:
+            controller: main
+            ports:
+              http:
+                port: 8080
+          bittorrent:
+            controller: main
+            type: LoadBalancer
+            annotations:
+              kube-vip.io/loadbalancerIPs: "10.9.8.91"
+            ports:
+              bittorrent-tcp:
+                enabled: true
+                port: 6881
+                protocol: TCP
+              bittorrent-udp:
+                enabled: true
+                port: 6881
+                protocol: UDP
+        persistence:
+          media:
+            enabled: true
+            existingClaim: media-library-pvc
+            globalMounts:
+              - path: /data
+          config:
+            enabled: true
+            type: persistentVolumeClaim
+            storageClass: "nfs-pv"
+            size: 1Gi
+            accessMode: ReadWriteMany
+            globalMounts:
+              - path: /config
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
