@@ -28,5 +28,5 @@ spec:
       services:
         - name: authentik-server
           port: 80
-  tls:
-    secretName: starktastic-net-tls
+  tls: {}
+

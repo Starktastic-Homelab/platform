@@ -21,3 +21,4 @@ spec:
           serversTransport: argocd-transport
   tls:
     secretName: argocd-server-tls
+
