@@ -1,7 +1,7 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: authentik-public
+  name: authentik-ingress-route
   namespace: authentik
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -9,27 +9,18 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`auth.starktastic.net`) && PathPrefix(`/if/admin`)
+    - match: Host(`auth.starktastic.net`) && (PathPrefix(`/if/admin`) || PathPrefix(`/api/v3/admin`))
       kind: Rule
       services:
         - name: authentik-server
           port: 80
       middlewares:
-        - name: redirect-admin-to-internal
-
-    - match: Host(`auth.starktastic.net`) && PathPrefix(`/api/v3/admin`)
-      kind: Rule
-      services:
-        - name: api@internal
-          kind: TraefikService
+        - name: admin-ip-allowlist
 
     - match: Host(`auth.starktastic.net`)
       kind: Rule
       services:
         - name: authentik-server
           port: 80
-      middlewares:
-        - name: security-headers
-          namespace: authentik
   tls: {}
 

@@ -32,10 +32,6 @@ spec:
           env:
             - name: AUTHENTIK_COOKIE_DOMAIN
               value: "starktastic.net"
-            - name: AUTHENTIK_CSRF_TRUSTED_ORIGINS
-              value: "https://auth.starktastic.net,https://auth.internal.starktastic.net"
-            - name: CSRF_TRUSTED_ORIGINS
-              value: "https://auth.starktastic.net,https://auth.internal.starktastic.net"
             - name: AUTHENTIK_EMAIL__HOST
               value: "smtp.eu.mailgun.org"
             - name: AUTHENTIK_EMAIL__PORT
@@ -93,3 +89,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
