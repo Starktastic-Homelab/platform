@@ -10,7 +10,7 @@ spec:
     - match: Host(`qbittorrent.internal.starktastic.net`)
       kind: Rule
       services:
-        - name: qbittorrent-webui
+        - name: qbittorrent
           port: 8080
       middlewares:
         - name: rate-limit-strong
