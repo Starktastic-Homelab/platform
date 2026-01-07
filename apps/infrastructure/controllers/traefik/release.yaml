@@ -15,6 +15,13 @@ spec:
         deployment:
           kind: DaemonSet
 
+        logs:
+          access:
+            enabled: true
+            fields:
+              headers:
+                defaultMode: keep
+
         # Allow running on Master/Control Plane nodes
         tolerations:
           - key: "node-role.kubernetes.io/master"
