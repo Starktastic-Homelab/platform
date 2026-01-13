@@ -4,11 +4,40 @@
     "config:recommended"
   ],
   "argocd": {
-    "managerFilePatterns": ["/\\.yaml$/"],
-    "enabled": true
+    "managerFilePatterns": [
+      "/\\.yaml$/"
+    ]
   },
   "kubernetes": {
-    "fileMatch": ["\\.yaml$"],
-    "enabled": true
-  }
+    "fileMatch": [
+      "\\.yaml$"
+    ]
+  },
+  "customManagers": [
+    {
+      "description": "Update Helm charts in app.yaml via JSONata",
+      "customType": "jsonata",
+      "fileMatch": [
+        "^apps/.*/app\\.yaml$"
+      ],
+      "matchStrings": [
+        "chart.{ 'depName': name, 'registryUrl': repo, 'currentValue': version }"
+      ],
+      "datasourceTemplate": "helm",
+      "fileFormat": "yaml"
+    },
+    {
+      "description": "Update Docker images recursively via JSONata",
+      "customType": "jsonata",
+      "fileMatch": [
+        "^apps/.*/app\\.yaml$",
+        "^apps/.*/values\\.yaml$"
+      ],
+      "matchStrings": [
+        "**. { 'depName': repository, 'currentDigest': digest } ? [depName] : []"
+      ],
+      "datasourceTemplate": "docker",
+      "fileFormat": "yaml"
+    }
+  ]
 }
