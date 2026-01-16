@@ -24,7 +24,7 @@ spec:
       sources:
         - repoURL: '{{ dig "chart" "repo" "https://bjw-s-labs.github.io/helm-charts" . }}'
           chart: '{{ dig "chart" "name" "app-template" . }}'
-          targetRevision: '{{ dig "chart" "version" "4.6.0" . }}'
+          targetRevision: '{{ dig "chart" "version" "4.6.2" . }}'
           helm:
             valueFiles:
               - $values/apps/templates/common.yaml
