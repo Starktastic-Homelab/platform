@@ -19,7 +19,7 @@
       "customType": "regex",
       "fileMatch": ["^apps/bootstrap/appset\\.yaml$"],
       "matchStrings": [
-        "repoURL: '{{ \\.chart\\.repo \\| default \"(?<registryUrl>.*?)\" }}'[\\s\\S]*?chart: '{{ \\.chart\\.name \\| default \"(?<depName>.*?)\" }}'[\\s\\S]*?targetRevision: '{{ \\.chart\\.version \\| default \"(?<currentValue>.*?)\" }}'"
+        "repoURL: '{{ dig \"chart\" \"repo\" \"(?<registryUrl>.*?)\" \\. }}'[\\s\\S]*?chart: '{{ dig \"chart\" \"name\" \"(?<depName>.*?)\" \\. }}'[\\s\\S]*?targetRevision: '{{ dig \"chart\" \"version\" \"(?<currentValue>.*?)\" \\. }}'"
       ],
       "datasourceTemplate": "helm",
       "fileFormat": "yaml"

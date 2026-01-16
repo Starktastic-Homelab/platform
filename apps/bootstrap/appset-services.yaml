@@ -22,9 +22,9 @@ spec:
     spec:
       project: default
       sources:
-        - repoURL: '{{ .chart.repo | default "https://bjw-s-labs.github.io/helm-charts" }}'
-          chart: '{{ .chart.name | default "app-template" }}'
-          targetRevision: '{{ .chart.version | default "4.6.0" }}'
+        - repoURL: '{{ dig "chart" "repo" "https://bjw-s-labs.github.io/helm-charts" . }}'
+          chart: '{{ dig "chart" "name" "app-template" . }}'
+          targetRevision: '{{ dig "chart" "version" "4.6.0" . }}'
           helm:
             valueFiles:
               - $values/apps/templates/common.yaml
