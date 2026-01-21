@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.x'
-          pip-install: 'yamllint'
           cache: 'pip'
 
       - name: Setup Kubeconform
@@ -37,7 +36,9 @@ jobs:
           options: --client
 
       - name: YAML Lint
-        run: yamllint .
+        run: |
+          pip install yamllint
+          yamllint .
         env:
           YAMLLINT_CONFIG_FILE: .github/yamllint.yaml
 
