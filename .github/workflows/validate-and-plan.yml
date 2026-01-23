@@ -83,6 +83,7 @@ jobs:
         run: |
           kubectl config set-context --current --namespace=argocd
           touch all_manifests.yaml
+          shopt -s nullglob # Prevents loop errors if no files match
 
           echo "Processing AppSets..."
           for appset in apps/bootstrap/appsets/*.yaml; do
@@ -131,8 +132,8 @@ jobs:
 
           cat plan.md
 
-      - name: Post Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: live-plan
-          path: plan.md
+      - name: "[DEBUG] Inspect Generated Manifests"
+        run: |
+          echo "================ ALL MANIFESTS YAML ================"
+          cat all_manifests.yaml
+          echo "===================================================="
