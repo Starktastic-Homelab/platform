@@ -1,15 +1,12 @@
-name: CI
+name: Validate and plan Kubernetes manifests
 
 on:
   pull_request:
     branches: [main]
 
 jobs:
-  # ------------------------------------------------------------------
-  # STAGE 1: Cloud Runner (Validation)
-  # ------------------------------------------------------------------
   validate:
-    name: Validate & Lint
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,28 +18,23 @@ jobs:
           python-version: '3.x'
           pip-install: 'yamllint'
 
-      - name: Setup Kubeconform
-        run: |
-          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
-          echo "$PWD" >> $GITHUB_PATH
-
       - name: YAML Lint
         run: yamllint .
         env:
           YAMLLINT_CONFIG_FILE: .github/yamllint.yaml
 
+      - name: Setup Kubeconform
+        run: |
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          echo "$PWD" >> $GITHUB_PATH
+
       - name: Validate static manifests
         run: |
           find . -type f -name '*.yaml' -path '*/manifests/*' -print0 | xargs -0 kubeconform \
-            -verbose \
-            -summary \
-            -schema-location default \
+            -verbose -summary -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 
-  # ------------------------------------------------------------------
-  # STAGE 2: Self-Hosted Runner (Generation & Plan)
-  # ------------------------------------------------------------------
-  live-plan:
+  plan:
     name: Live Cluster Diff
     needs: validate
     runs-on: self-hosted
@@ -68,7 +60,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          version: 3.2.6
           command: version
           options: --client
 
@@ -98,32 +89,35 @@ jobs:
             cat $app >> all_manifests.yaml
           done
 
-      - name: "[DEBUG] Inspect Generated Manifests"
-        run: |
-          echo "================ ALL MANIFESTS YAML ================"
-          cat all_manifests.yaml
-          echo "===================================================="
-
       - name: Run Diff
         id: diff
         run: |
-          echo "### 🔮 Kubernetes Live Plan" > plan.md
+          echo "## 🔮 Kubernetes Live Plan" > plan.md
 
           set +e
-          # Diff generated manifests against the live cluster
           DIFF_OUTPUT=$(kubectl diff -f all_manifests.yaml --server-side 2>&1)
           EXIT_CODE=$?
           set -e
 
+          # Ignore lines containing targetRevision, generation, or resourceVersion
+          IGNORED_PATTERNS="targetRevision|generation|resourceVersion|argocd.argoproj.io/tracking-id"
+          REAL_CHANGES=$(echo "$DIFF_OUTPUT" | grep -E "^[+|-]" | grep -vE "^(\+\+\+|---)" | grep -vE "$IGNORED_PATTERNS" || true)
+
           if [ $EXIT_CODE -eq 1 ]; then
-            echo "⚠️ **Changes Detected**"
-            echo "<details><summary><strong>Show Plan</strong></summary>" >> plan.md
-            echo "" >> plan.md
-            echo "\`\`\`diff" >> plan.md
-            echo "$DIFF_OUTPUT" | head -c 60000 >> plan.md
-            echo "\`\`\`" >> plan.md
-            echo "</details>" >> plan.md
+            if [ -z "$REAL_CHANGES" ]; then
+              echo "✅ **Verified** (no logic changes detected)." >> plan.md
+              echo "> _targetRevision updated to PR SHA._" >> plan.md
+            else
+              echo "⚠️ **Changes Detected**" >> plan.md
+              echo "<details><summary><strong>Show Plan</strong></summary>" >> plan.md
+              echo "" >> plan.md
+              echo "\`\`\`diff" >> plan.md
+              echo "$DIFF_OUTPUT" | head -c 60000 >> plan.md
+              echo "\`\`\`" >> plan.md
+              echo "</details>" >> plan.md
+            fi
           elif [ $EXIT_CODE -eq 0 ]; then
+             # Fallback - not really possible
             echo "✅ No changes detected against live cluster." >> plan.md
           else
             echo "❌ **Diff Failed** (Exit Code: $EXIT_CODE)" >> plan.md
