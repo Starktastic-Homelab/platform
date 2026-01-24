@@ -19,7 +19,13 @@ jobs:
           pip-install: 'yamllint'
 
       - name: YAML Lint
-        run: yamllint .
+        id: yamllint
+        run: |
+          set +e
+          yamllint . > yamllint.txt 2>&1
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then echo "❌ YAML Lint Failed"; else echo "✅ YAML Lint Passed"; fi
         env:
           YAMLLINT_CONFIG_FILE: .github/yamllint.yaml
 
@@ -29,10 +35,54 @@ jobs:
           echo "$PWD" >> $GITHUB_PATH
 
       - name: Validate static manifests
+        id: kubeconform
         run: |
+          set +e
           find . -type f -name '*.yaml' -path '*/manifests/*' -print0 | xargs -0 kubeconform \
             -verbose -summary -schema-location default \
-            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' > kubeconform.txt 2>&1
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then echo "❌ Kubeconform Failed"; else echo "✅ Kubeconform Passed"; fi
+
+      - name: Create validation report
+        if: always()
+        run: |
+          echo "### 🛡️ Static Validation" > validation-report.md
+          
+          if [ "${{ steps.yamllint.outputs.exit_code }}" -eq 0 ]; then
+            echo "✅ **YAML Lint:** Passed" >> validation-report.md
+          else
+            echo "❌ **YAML Lint:** FAILED" >> validation-report.md
+            echo "<details><summary>Log</summary><pre>" >> validation-report.md
+            cat yamllint.txt >> validation-report.md
+            echo "</pre></details>" >> validation-report.md
+          fi
+          
+          if [ "${{ steps.kubeconform.outputs.exit_code }}" -eq 0 ]; then
+             echo "✅ **Kubeconform:** Passed" >> validation-report.md
+             echo "<details><summary>Summary</summary><pre>" >> validation-report.md
+             tail -n 5 kubeconform.txt >> validation-report.md
+             echo "</pre></details>" >> validation-report.md
+          else
+             echo "❌ **Kubeconform:** FAILED" >> validation-report.md
+             echo "<details><summary>Log</summary><pre>" >> validation-report.md
+             cat kubeconform.txt >> validation-report.md
+             echo "</pre></details>" >> validation-report.md
+          fi
+
+          echo "" >> validation-report.md
+      - name: Upload validation report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation-report.md
+          retention-days: 1
+
+      - name: Check status
+        if: steps.yamllint.outputs.exit_code != 0 || steps.kubeconform.outputs.exit_code != 0
+        run: exit 1
 
   plan:
     name: Live Cluster Diff
@@ -68,7 +118,7 @@ jobs:
           curl -sSLo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
-      - name: Generate Full Manifests
+      - name: Generate full manifests with PR SHA
         env:
           PR_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -89,17 +139,16 @@ jobs:
             cat $app >> all_manifests.yaml
           done
 
-      - name: Run Diff
+      - name: Run diff
         id: diff
         run: |
-          echo "## 🔮 Kubernetes Live Plan" > plan.md
+          echo "### 🔮 Kubernetes Live Plan" > plan.md
 
           set +e
           DIFF_OUTPUT=$(kubectl diff -f all_manifests.yaml --server-side 2>&1)
           EXIT_CODE=$?
           set -e
 
-          # Ignore lines containing targetRevision, generation, or resourceVersion
           IGNORED_PATTERNS="targetRevision|generation|resourceVersion|argocd.argoproj.io/tracking-id"
           REAL_CHANGES=$(echo "$DIFF_OUTPUT" | grep -E "^[+|-]" | grep -vE "^(\+\+\+|---)" | grep -vE "$IGNORED_PATTERNS" || true)
 
@@ -117,7 +166,6 @@ jobs:
               echo "</details>" >> plan.md
             fi
           elif [ $EXIT_CODE -eq 0 ]; then
-             # Fallback - not really possible
             echo "✅ No changes detected against live cluster." >> plan.md
           else
             echo "❌ **Diff Failed** (Exit Code: $EXIT_CODE)" >> plan.md
@@ -126,4 +174,41 @@ jobs:
             echo "\`\`\`" >> plan.md
           fi
 
-          cat plan.md
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-report
+          path: plan.md
+          retention-days: 1
+
+  report:
+    name: Report status
+    needs: [validate, plan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Assemble comment
+        run: |
+          touch comment.md
+
+          if [ -f artifacts/validation-report/validation-report.md ]; then
+            cat artifacts/validation-report/validation-report.md >> comment.md
+            echo "" >> comment.md
+            echo "---" >> comment.md
+            echo "" >> comment.md
+          fi
+
+          if [ -f artifacts/plan-report/plan.md ]; then
+            cat artifacts/plan-report/plan.md >> comment.md
+          fi
+
+      - name: Post comment
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
+        with:
+          header: ci-report
+          path: comment.md
