@@ -1,0 +1,217 @@
+name: Validate and plan Kubernetes manifests
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v6.1.0
+        with:
+          python-version: '3.x'
+          pip-install: 'yamllint'
+
+      - name: YAML Lint
+        id: yamllint
+        run: |
+          set +e
+          yamllint . > yamllint.txt 2>&1
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then echo "❌ YAML Lint Failed"; else echo "✅ YAML Lint Passed"; fi
+        env:
+          YAMLLINT_CONFIG_FILE: .github/yamllint.yaml
+
+      - name: Setup Kubeconform
+        run: |
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          echo "$PWD" >> $GITHUB_PATH
+
+      - name: Validate static manifests
+        id: kubeconform
+        run: |
+          set +e
+          find . -type f -name '*.yaml' -path '*/manifests/*' -print0 | xargs -0 kubeconform \
+            -verbose -summary -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' > kubeconform.txt 2>&1
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then echo "❌ Kubeconform Failed"; else echo "✅ Kubeconform Passed"; fi
+
+      - name: Create validation report
+        if: always()
+        run: |
+          echo "### 🛡️ Static Validation" > validation-report.md
+
+          if [ "${{ steps.yamllint.outputs.exit_code }}" -eq 0 ]; then
+            echo "✅ **YAML Lint:** Passed" >> validation-report.md
+          else
+            echo "❌ **YAML Lint:** FAILED" >> validation-report.md
+            echo "<details><summary>Log</summary><pre>" >> validation-report.md
+            cat yamllint.txt >> validation-report.md
+            echo "</pre></details>" >> validation-report.md
+          fi
+
+          if [ "${{ steps.kubeconform.outputs.exit_code }}" -eq 0 ]; then
+             echo "✅ **Kubeconform:** Passed" >> validation-report.md
+             echo "<details><summary>Summary</summary><pre>" >> validation-report.md
+             tail -n 5 kubeconform.txt >> validation-report.md
+             echo "</pre></details>" >> validation-report.md
+          else
+             echo "❌ **Kubeconform:** FAILED" >> validation-report.md
+             echo "<details><summary>Log</summary><pre>" >> validation-report.md
+             cat kubeconform.txt >> validation-report.md
+             echo "</pre></details>" >> validation-report.md
+          fi
+
+          echo "" >> validation-report.md
+
+      - name: Upload validation report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation-report.md
+          retention-days: 1
+
+      - name: Check status
+        if: steps.yamllint.outputs.exit_code != 0 || steps.kubeconform.outputs.exit_code != 0
+        run: exit 1
+
+  plan:
+    name: Live Cluster Diff
+    needs: validate
+    runs-on: self-hosted
+    container:
+      image: buildpack-deps:scm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_RAW }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v4.0.1
+        with:
+          version: 'latest'
+
+      - name: Setup ArgoCD CLI
+        uses: clowdhaus/argo-cd-action@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: version
+          options: --client
+
+      - name: Setup YQ
+        run: |
+          curl -sSLo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+      - name: Generate full manifests with PR SHA
+        env:
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          kubectl config set-context --current --namespace=argocd
+          touch all_manifests.yaml
+
+          echo "Processing AppSets..."
+          for appset in apps/bootstrap/appsets/*.yaml; do
+            echo "Generating from: $appset"
+            yq -i ".spec.generators[0].git.revision = \"$PR_SHA\"" $appset
+            argocd appset generate --core --loglevel error -o yaml $appset | yq -P '.[]' >> all_manifests.yaml
+          done
+
+          echo "Processing standalone Apps..."
+          for app in apps/bootstrap/*.yaml; do
+            echo "Processing App: $app"
+            yq -i ".spec.source.targetRevision = \"$PR_SHA\"" $app
+            cat $app >> all_manifests.yaml
+          done
+
+      - name: Run diff
+        id: diff
+        run: |
+          echo "### 🔮 Kubernetes Live Plan" > plan.md
+
+          set +e
+          DIFF_OUTPUT=$(kubectl diff -f all_manifests.yaml --server-side 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          IGNORED_PATTERNS="targetRevision|generation|resourceVersion|argocd.argoproj.io/tracking-id|kubectl.kubernetes.io/last-applied-configuration"
+          REAL_CHANGES=$(echo "$DIFF_OUTPUT" | grep -E "^[+|-]" | grep -vE "^(\+\+\+|---)" | grep -vE "$IGNORED_PATTERNS" || true)
+
+          if [ $EXIT_CODE -eq 1 ]; then
+            if [ -z "$REAL_CHANGES" ]; then
+              echo "✅ **Verified** (no logic changes detected)." >> plan.md
+              echo "> _targetRevision updated to PR SHA._" >> plan.md
+            else
+              echo "⚠️ **Changes Detected**" >> plan.md
+              echo "<details><summary><strong>Show Plan</strong></summary>" >> plan.md
+              echo "" >> plan.md
+              echo "\`\`\`diff" >> plan.md
+              echo "$DIFF_OUTPUT" | head -c 60000 >> plan.md
+              echo "\`\`\`" >> plan.md
+              echo "</details>" >> plan.md
+            fi
+          elif [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ No changes detected against live cluster." >> plan.md
+          else
+            echo "❌ **Diff Failed** (Exit Code: $EXIT_CODE)" >> plan.md
+            echo "\`\`\`" >> plan.md
+            echo "$DIFF_OUTPUT" >> plan.md
+            echo "\`\`\`" >> plan.md
+          fi
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-report
+          path: plan.md
+          retention-days: 1
+
+  report:
+    name: Report status
+    needs: [validate, plan]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Assemble comment
+        run: |
+          touch comment.md
+
+          if [ -f artifacts/validation-report/validation-report.md ]; then
+            cat artifacts/validation-report/validation-report.md >> comment.md
+            echo "" >> comment.md
+            echo "---" >> comment.md
+            echo "" >> comment.md
+          fi
+
+          if [ -f artifacts/plan-report/plan.md ]; then
+            cat artifacts/plan-report/plan.md >> comment.md
+          fi
+
+      - name: Post comment
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
+        with:
+          header: ci-report
+          path: comment.md
