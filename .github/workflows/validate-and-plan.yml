@@ -150,7 +150,7 @@ jobs:
           EXIT_CODE=$?
           set -e
 
-          IGNORED_PATTERNS="targetRevision|generation|resourceVersion|argocd.argoproj.io/tracking-id"
+          IGNORED_PATTERNS="targetRevision|generation|resourceVersion|argocd.argoproj.io/tracking-id|kubectl.kubernetes.io/last-applied-configuration"
           REAL_CHANGES=$(echo "$DIFF_OUTPUT" | grep -E "^[+|-]" | grep -vE "^(\+\+\+|---)" | grep -vE "$IGNORED_PATTERNS" || true)
 
           if [ $EXIT_CODE -eq 1 ]; then
