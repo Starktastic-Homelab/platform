@@ -25,7 +25,7 @@ jobs:
       - name: sh-checker
         uses: luizm/action-sh-checker@v0.10.0
         env:
-          SHFMT_OPTIONS: -i 2 -ci -s -w
+          SHFMT_OPTS: -i 2 -ci -s -w
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7.1.0
