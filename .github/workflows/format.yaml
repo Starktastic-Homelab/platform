@@ -19,15 +19,5 @@ jobs:
       - name: Prettier
         uses: creyD/prettier_action@v4.6
         with:
-          prettier_options: --write **/*.{yaml,yml,json}
-          no_commit: true
-
-      - name: sh-checker
-        uses: luizm/action-sh-checker@v0.10.0
-        env:
-          SHFMT_OPTS: -i 2 -ci -s -w
-
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v7.1.0
-        with:
-          commit_message: "style: apply automatic formatting"
+          prettier_plugins: "prettier-plugin-sh"
+          prettier_options: --write **/*.{yaml,yml,json,sh}
