@@ -126,6 +126,8 @@ jobs:
           kubectl config set-context --current --namespace=argocd
           touch all_manifests.yaml
 
+          REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           echo "Processing AppSets..."
           for appset in apps/bootstrap/appsets/*.yaml; do
             echo "Generating from: $appset"
