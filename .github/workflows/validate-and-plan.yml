@@ -222,6 +222,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           path: artifacts
+          merge-multiple: true
 
       - name: Assemble comment
         run: |
