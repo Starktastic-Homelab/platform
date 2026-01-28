@@ -227,6 +227,8 @@ jobs:
         run: |
           touch comment.md
 
+          ls -la artifacts
+
           if [ -f artifacts/validation-report/validation-report.md ]; then
             cat artifacts/validation-report/validation-report.md >> comment.md
             echo "" >> comment.md
