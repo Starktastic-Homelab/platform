@@ -238,12 +238,14 @@ jobs:
             cat artifacts/plan-report/plan-report.md >> comment.md
           fi
 
-      - name: Assemble comment as multiline env var
-        id: assemble-comment
+      - name: Convert comment to env variable
         run: |
-          echo 'COMMENT<<EOF' >> "$GITHUB_ENV"
-          echo "$(cat comment.md)" >> "$GITHUB_ENV"
-          echo 'EOF' >> "$GITHUB_ENV"
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          {
+            echo "COMMENT<<$EOF"
+            cat comment.md
+            echo "$EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Post comment
         uses: marocchino/sticky-pull-request-comment@v2.9.4
