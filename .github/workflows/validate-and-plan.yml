@@ -247,6 +247,10 @@ jobs:
             echo "$EOF"
           } >> "$GITHUB_ENV"
 
+      - name: Print comment env variable (for debugging)
+        run: |
+          echo "$COMMENT"
+
       - name: Post comment
         uses: marocchino/sticky-pull-request-comment@v2.9.4
         with:
