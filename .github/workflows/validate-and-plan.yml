@@ -238,8 +238,15 @@ jobs:
             cat artifacts/plan-report/plan-report.md >> comment.md
           fi
 
+      - name: Assemble comment as multiline env var
+        id: assemble-comment
+        run: |
+          echo 'COMMENT<<EOF' >> "$GITHUB_ENV"
+          echo "$(cat comment.md)" >> "$GITHUB_ENV"
+          echo 'EOF' >> "$GITHUB_ENV"
+
       - name: Post comment
         uses: marocchino/sticky-pull-request-comment@v2.9.4
         with:
           header: ci-report
-          path: comment.md
+          message: ${{ env.COMMENT }}
