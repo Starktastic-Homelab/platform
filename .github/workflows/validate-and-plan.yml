@@ -235,8 +235,8 @@ jobs:
             echo "" >> comment.md
           fi
 
-          if [ -f artifacts/plan-report.md ]; then
-            cat artifacts/plan-report.md >> comment.md
+          if [ -f artifacts/plan.md ]; then
+            cat artifacts/plan.md >> comment.md
           fi
 
       - name: Post comment
