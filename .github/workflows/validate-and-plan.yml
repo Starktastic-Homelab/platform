@@ -221,7 +221,14 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v7
         with:
-          path: artifacts
+          name: validation-report
+          path: artifacts/validation-report.md
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: plan-report
+          path: artifacts/plan-report.md
 
       - name: Assemble comment
         run: |
@@ -234,8 +241,8 @@ jobs:
             echo "" >> comment.md
           fi
 
-          if [ -f artifacts/plan-report/plan.md ]; then
-            cat artifacts/plan-report/plan.md >> comment.md
+          if [ -f artifacts/plan-report/plan-report.md ]; then
+            cat artifacts/plan-report/plan-report.md >> comment.md
           fi
 
       - name: Post comment
